@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Account {
+    id                String  @id @default(cuid())
+    userId            String
+    type              String
+    provider          String
+    providerAccountId String
+    refresh_token     String? @db.Text
+    access_token      String? @db.Text
+    expires_at        Int?
+    token_type        String?
+    scope             String?
+    id_token          String? @db.Text
+    session_state     String?
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+    @@map("accounts")
+}
+
+enum Role {
+    USER
+    ADMIN
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique @map("session_token")
+    userId       String   @map("user_id")
+    expires      DateTime
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("sessions")
+}
+
+model VerificationToken {
+    identifier String
+    token      String   @unique
+    expires    DateTime
+
+    @@unique([identifier, token])
+    @@map("verificationtokens")
+}
+
+model User {
+    id            String    @id @default(cuid())
+    role          Role      @default(USER)
+    name          String?
+    email         String?   @unique
+    emailVerified DateTime? @map("email_verified")
+    image         String?
+    accounts      Account[]
+    sessions      Session[]
+
+    createdAt DateTime @default(now())
+
+    address      Address?
+    paymentInfos PaymentInfo[]
+    orders       Order[]
+    carts        Cart[]
+}
+
+model Address {
+    id         String   @id @default(cuid())
+    street     String?
+    city       String
+    state      String?
+    postalCode String?
+    userId     String   @unique
+    createdAt  DateTime @default(now())
+
+    user User @relation(fields: [userId], references: [id])
+}
+
+model Product {
+    id          String   @id @default(cuid())
+    name        String
+    description String?
+    price       Float
+    link        String
+    color       String?
+    quantity    Int      @default(7)
+    categoryId  String
+    createdAt   DateTime @default(now())
+
+    category   Category    @relation(fields: [categoryId], references: [id])
+    carts      CartItem[]
+    orderItems OrderItem[]
+}
+
+model Category {
+    id String @id @default(cuid())
+
+    name      String
+    createdAt DateTime @default(now())
+
+    products Product[]
+}
+
+model Cart {
+    id String @id @default(cuid())
+
+    createdAt  DateTime @default(now())
+    totalItems Int
+    totalPrice Float
+    userId     String
+
+    user      User       @relation(fields: [userId], references: [id])
+    cartItems CartItem[]
+}
+
+model CartItem {
+    id String @id @default(cuid())
+
+    quantity  Int 
+    productId String
+    createdAt DateTime @default(now())
+
+    cartId String
+    cart   Cart   @relation(fields: [cartId], references: [id])
+
+    product Product @relation(fields: [productId], references: [id])
+}
+
+model Order {
+    id String @id @default(cuid())
+
+    userId         String
+    totalAmount    Float
+    shippingInfoId String
+    paymentInfoId  String
+    createdAt      DateTime @default(now())
+
+    user         User         @relation(fields: [userId], references: [id])
+    shippingInfo ShippingInfo @relation(fields: [shippingInfoId], references: [id])
+    paymentInfo  PaymentInfo  @relation(fields: [paymentInfoId], references: [id])
+    orderItems   OrderItem[]
+}
+
+model OrderItem {
+    id        String   @id @default(cuid())
+    quantity  Int
+    price     Float
+    orderId   String
+    productId String
+    createdAt DateTime @default(now())
+
+    order   Order   @relation(fields: [orderId], references: [id])
+    product Product @relation(fields: [productId], references: [id])
+}
+
+model PaymentInfo {
+    id             String   @id @default(cuid())
+    cardNumber     String
+    cardHolder     String
+    expirationDate String
+    cvv            String
+    userId         String
+    createdAt      DateTime @default(now())
+
+    user  User    @relation(fields: [userId], references: [id])
+    Order Order[]
+}
+
+model ShippingInfo {
+    id            String   @id @default(cuid())
+    recipientName String
+    street        String
+    city          String
+    state         String
+    postalCode    String
+    phone         String
+    userId        String
+    createdAt     DateTime @default(now())
+
+    Order Order[]
+}
